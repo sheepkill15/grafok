@@ -1,11 +1,15 @@
 const canvas = document.getElementById("main");
 const ctx = canvas.getContext('2d');
 
-const width = window.innerWidth;
-const height = window.innerHeight;
+const width = canvas.clientWidth;
+const height = canvas.clientHeight;
+
+canvas.width = width;
+canvas.height = height;
 
 const seen = document.getElementById('seen');
 const queue = document.getElementById('queue');
+const toggle = document.getElementById('bejaras');
 
 ctx.font = "50px Arial";
 //ctx.translate(width / 2, height / 2);
@@ -15,7 +19,7 @@ class Point {
         this.x = x;
         this.y = y;
         this.id = id;
-        this.seen = false;
+        this.seen = 0;
         this.was = false;
     }
 
@@ -53,20 +57,25 @@ class Edge {
 const points = [];
 const edges = [];
 
-let currNode = -1;
+const state = {
+    currNode: -1,
+    nodeQueue: [],
+    queueStart: 0,
+    zone: 0
+}
 
 const gameLoop = () => {
     //ctx.push();
     ctx.clearRect(0, 0, width, height);
     for(point in points) {
         let color;
-        if(point == currNode) {
+        if(point == state.currNode) {
             color = 'red';
         }
         else if(points[point].was === true) {
             color = 'purple';
         }
-        else if(points[point].seen === true) {
+        else if(points[point].seen !== 0) {
             color = 'green';
         }
         else color = 'black';
@@ -79,49 +88,68 @@ const gameLoop = () => {
 
     let seenText = "Látott tomb:";
     for(point in points) {
-        seenText += ' ' + (points[point].seen === true ? '1' : '0');
+        seenText += ' ' + (points[point].seen);
     }
     seen.innerText = seenText;
+    let queueText;
+    let iterStart;
+    if(!toggle.checked) {
+        queueText = "Várakozási sor:";
+        iterStart = state.queueStart;
+    }
+    else {
+        queueText = "Stack:";
+        iterStart = 0;
+    }
 
-    let queueText = "Várakozási sor:";
-    for(let i = queueStart; i < nodeQueue.length; i++) {
-        queueText += ' ' + (nodeQueue[i] + 1);
+    for(let i = iterStart; i < state.nodeQueue.length; i++) {
+        queueText += ' ' + (parseInt(state.nodeQueue[i]) + 1);
     }
     queue.innerText = queueText;
 
     requestAnimationFrame(gameLoop);
 }
-const nodeQueue = [0];
-let queueStart = 0;
 
-const propagateBreadthFirst = (event) => {
-    if(queueStart >= nodeQueue.length) {
-        currNode = -1;
-        nodeQueue = [0];
-        queueStart = 0;
-        for(point in points) {
-            points[point].seen = false;
-        }
-        points[0].seen = true;
-        return;
-    }
-    currNode = nodeQueue[queueStart++];
-    points[currNode].was = true;
+const propagateBreadthFirst = () => {
+    state.currNode = state.nodeQueue[state.queueStart++];
+    points[state.currNode].was = true;
     for(edge in edges) {
-        if(edges[edge].point1 == points[currNode]) {
+        if(edges[edge].point1 == points[state.currNode]) {
             if(edges[edge].point2.seen) continue;
-            nodeQueue.push(edges[edge].point2.id - 1);
-            edges[edge].point2.seen = true;
+            state.nodeQueue.push(edges[edge].point2.id - 1);
+            edges[edge].point2.seen = state.zone;
         }
-        else if(edges[edge].point2 == points[currNode]) {
+        else if(edges[edge].point2 == points[state.currNode]) {
             if(edges[edge].point1.seen) continue;
-            nodeQueue.push(edges[edge].point1.id - 1);
-            edges[edge].point1.seen = true;
+            state.nodeQueue.push(edges[edge].point1.id - 1);
+            edges[edge].point1.seen = state.zone;
         }
     }
 }
 
-
+const propagateDepthFirst = () => {
+    state.currNode = state.nodeQueue[state.nodeQueue.length - 1];
+    let already_was = points[state.currNode].was;
+    points[state.currNode].was = true;
+    for(edge in edges) {
+        if(edges[edge].point1 == points[state.currNode]) {
+            if(edges[edge].point2.seen) continue;
+            state.nodeQueue.push(edges[edge].point2.id - 1);
+            edges[edge].point2.seen = state.zone;
+            return;
+        }
+        else if(edges[edge].point2 == points[state.currNode]) {
+            if(edges[edge].point1.seen) continue;
+            state.nodeQueue.push(edges[edge].point1.id - 1);
+            edges[edge].point1.seen = state.zone;
+            return;
+        }
+    }
+    if(already_was) {
+        state.nodeQueue.pop();
+        state.currNode = state.nodeQueue[state.nodeQueue.length - 1];
+    }
+}
 
 let isDragging = false;
 let pointClosest;
@@ -130,13 +158,17 @@ let closestDistanceYet = 99999;
 let rightClickedOn;
 
 const moveCircles = (event) => {
+    if(points.length === 0) return;
     if(isDragging) {
         points[pointClosest].x = event.offsetX;
         points[pointClosest].y = event.offsetY;
     }
 }
 
-document.addEventListener('mousedown', (event) => {
+canvas.addEventListener('mousedown', (event) => {
+
+    if(points.length === 0) return;
+
     if(event.button === 0)
         isDragging = true;
 
@@ -158,25 +190,25 @@ document.addEventListener('mousedown', (event) => {
     }
 });
 
-const n_point = prompt("Hány darab pont?");
+// const n_point = prompt("Hány darab pont?");
 
-for(let i = 1; i <= n_point; i++) {
-    points.push(new Point(Math.cos(i) * 250 + width / 2, Math.sin(i) * 250 + height/2, i));
-}
-points[0].seen = true;
+// for(let i = 1; i <= n_point; i++) {
+//     points.push(new Point(Math.cos(i) * 250 + width / 2, Math.sin(i) * 250 + height/2, i));
+// }
+// points[0].seen = true;
 
-const n_edge = prompt("Hány él?");
+// const n_edge = prompt("Hány él?");
 
-for(let i = 1; i <= n_edge; i++) {
-    const first = prompt(i + ". él első pont:");
-    const second = prompt(i + ". él második pont:");
+// for(let i = 1; i <= n_edge; i++) {
+//     const first = prompt(i + ". él első pont:");
+//     const second = prompt(i + ". él második pont:");
 
-    edges.push(new Edge(points[first - 1], points[second - 1]));
-}
+//     edges.push(new Edge(points[first - 1], points[second - 1]));
+// }
 
 canvas.oncontextmenu = (e) => {e.preventDefault(); e.stopPropagation(); };
-document.addEventListener('mousemove', moveCircles);
-document.addEventListener('mouseup', (event) => {
+canvas.addEventListener('mousemove', moveCircles);
+canvas.addEventListener('mouseup', (event) => {
     isDragging = false;
     if(event.button === 2) {
         closestDistanceYet = 99999;
@@ -192,7 +224,7 @@ document.addEventListener('mouseup', (event) => {
             }
         }
         if(closestDistanceYet > 15000) {
-            points.push(new Point(event.offsetX, event.offsetY, points.length + 1));
+            points.push(new Point(event.offsetX, event.offsetY, (points.length + 1)));
         }
         else if(rightClickedOn !== pointClosest){
             edges.push(new Edge(points[rightClickedOn], points[pointClosest]));
@@ -201,6 +233,23 @@ document.addEventListener('mouseup', (event) => {
     }
 });
 
-document.addEventListener('keydown', propagateBreadthFirst);
+document.addEventListener('keydown', () => {
+    if(state.queueStart >= state.nodeQueue.length && (!toggle.checked || state.nodeQueue.length === 0)) {
+        let ok = true;
+        for(point in points) {
+            if(points[point].seen === 0) {
+                state.nodeQueue.push(point);
+                points[point].seen = state.zone + 1;
+                ok = false;
+                break;
+            }
+        }
+        if(ok) return;
+        state.zone++;
+    }
+    if(!toggle.checked)
+        propagateBreadthFirst();
+    else propagateDepthFirst();
+});
 
 gameLoop();

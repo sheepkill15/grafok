@@ -4,21 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Szélességi bejárás</title>
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-        }
-        p {
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: large;
-        }
-    </style>
+    <link href="main.css" rel="stylesheet">
 </head>
-<body style="overflow:hidden;width: 100vw; height: 100vh;">
+<body>
     <p id="seen">Látott tömb:</p>
     <p id="queue">Várokozási sor:</p>
-    <canvas id="main" width="1280px" height="720px"></canvas>
+    <!-- Rounded switch -->
+    <div class="bejaras-switch">
+        Szélességi bejárás
+        <label class="switch" >
+            <input id='bejaras' type="checkbox">
+            <span class="slider round"></span>
+        </label>
+        Mélységi bejárás
+    </div>
+    <div class="canvasHolder">
+        <canvas id="main"></canvas>
+    </div>
     <script src="main.js"></script>
 </body>
 </html>
